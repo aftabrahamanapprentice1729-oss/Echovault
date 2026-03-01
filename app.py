@@ -130,7 +130,7 @@ def add_story(current_user_id):
     yt_url = data.get('url')
     
     # Extract_flat set to False so we can grab the YouTube description for the AI
-    ydl_opts = {'quiet': True, 'extract_flat': False}
+    ydl_opts = {'quiet': True, 'extract_flat': False, 'cookiefile': 'cookies.txt','nocheckcertificate': True}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(yt_url, download=False)
@@ -180,7 +180,7 @@ def add_playlist(current_user_id):
     data = request.json
     playlist_url = data.get('url')
     if not playlist_url or 'list=' not in playlist_url: return jsonify({"error": "Not a valid playlist URL"}), 400
-    ydl_opts = {'extract_flat': True, 'quiet': True}
+    ydl_opts = {'extract_flat': True, 'quiet': True, 'cookiefile': 'cookies.txt','nocheckcertificate': True}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(playlist_url, download=False)
@@ -198,7 +198,7 @@ def add_playlist(current_user_id):
                     if not existing:
                         cover_url = f"https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg"
                         
-                        # 🧠 RUN LOCAL AI (Title only for playlists to keep extraction fast) 🧠
+                        
                         ai_tags = get_smart_tags(title, "")
                         tags_json = json.dumps(ai_tags)
                         
@@ -354,4 +354,7 @@ def get_stats(current_user_id):
     return jsonify({"total_seconds": total_sec, "favorites_count": fav_count, "stories_listened": story_count})
 
 if __name__ == '__main__':
-    app.run(debug=False, port=5000)
+    # Render provides a $PORT environment variable; this ensures your app listens to it
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
