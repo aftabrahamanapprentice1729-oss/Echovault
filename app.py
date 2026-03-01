@@ -130,7 +130,21 @@ def add_story(current_user_id):
     yt_url = data.get('url')
     
     # Extract_flat set to False so we can grab the YouTube description for the AI
-    ydl_opts = {'quiet': True, 'extract_flat': False, 'cookiefile': 'cookies.txt','nocheckcertificate': True}
+    ydl_opts = {
+    'quiet': True,
+    'extract_flat': False,
+    'cookiefile': 'cookies.txt',
+    'nocheckcertificate': True,
+    'ignoreerrors': True,
+    'no_warnings': True,
+    # 🚨 ADD THESE HEADERS TO LOOK LIKE A REAL BROWSER 🚨
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Sec-Fetch-Mode': 'navigate',
+                    }
+        }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(yt_url, download=False)
@@ -148,7 +162,6 @@ def add_story(current_user_id):
             description = info.get('description', '')
             cover_url = f"https://img.youtube.com/vi/{yt_id}/maxresdefault.jpg"
             
-            # 🧠 RUN THE LOCAL OLLAMA AI PIPELINE 🧠
             ai_tags = get_smart_tags(title, description)
             tags_json = json.dumps(ai_tags) 
             
@@ -180,7 +193,21 @@ def add_playlist(current_user_id):
     data = request.json
     playlist_url = data.get('url')
     if not playlist_url or 'list=' not in playlist_url: return jsonify({"error": "Not a valid playlist URL"}), 400
-    ydl_opts = {'extract_flat': True, 'quiet': True, 'cookiefile': 'cookies.txt','nocheckcertificate': True}
+    ydl_opts = {
+    'quiet': True,
+    'extract_flat': False,
+    'cookiefile': 'cookies.txt',
+    'nocheckcertificate': True,
+    'ignoreerrors': True,
+    'no_warnings': True,
+    # 🚨 ADD THESE HEADERS TO LOOK LIKE A REAL BROWSER 🚨
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Sec-Fetch-Mode': 'navigate',
+    }
+}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(playlist_url, download=False)
@@ -358,3 +385,4 @@ if __name__ == '__main__':
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
