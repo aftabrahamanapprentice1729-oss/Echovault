@@ -1,6 +1,7 @@
 Flask
 Flask-CORS
 PyJWT
-yt-dlp
+yt-dlp>=2025.01.01
 groq
+
 gunicorn
