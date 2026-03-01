@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoVault | Your Audio Story Space</title>
+    <link rel="manifest" href="/manifest.json">
+    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }</script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { deep: '#000000', accent: '#ef4444' },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: { 'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite', 'blob': 'blob 10s infinite' },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #000000; color: #f4f4f5; overflow-x: hidden; }
+        .view-section { display: none; opacity: 0; transition: opacity 0.5s ease-in-out; }
+        .view-section.active { display: flex; opacity: 1; }
+        .aurora-blob { position: absolute; filter: blur(80px); z-index: -1; opacity: 0.4; animation: blob 10s infinite; }
+        .blob-1 { top: 0; left: 0; width: 500px; height: 500px; background: #ef4444; animation-delay: 0s; }
+        .blob-2 { bottom: 0; right: 0; width: 400px; height: 400px; background: #3f3f46; animation-delay: 2s; }
+        .blob-3 { top: 40%; left: 40%; width: 300px; height: 300px; background: #7f1d1d; animation-delay: 4s; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000000; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+        .glass-panel { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #fff; cursor: pointer; margin-top: -4px; box-shadow: 0 0 10px rgba(0,0,0,0.5); transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: transparent; border-radius: 2px; }
+    </style>
+</head>
+<body class="antialiased min-h-screen relative">
+
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="aurora-blob blob-1 rounded-full"></div>
+        <div class="aurora-blob blob-2 rounded-full"></div>
+        <div class="aurora-blob blob-3 rounded-full"></div>
+    </div>
+
+    <div id="toast" class="fixed bottom-28 left-1/2 transform -translate-x-1/2 bg-zinc-800 text-white px-6 py-3 rounded-full shadow-2xl z-[100] transition-all duration-300 opacity-0 translate-y-10 pointer-events-none border border-white/10 flex items-center gap-3 font-medium">
+        <i class="fa-solid fa-circle-info text-accent"></i>
+        <span id="toast-msg"></span>
+    </div>
+
+    <section id="view-landing" class="view-section active min-h-screen flex-col items-center justify-center text-center px-4">
+        <div class="max-w-3xl space-y-8">
+            <h1 class="text-6xl md:text-8xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-zinc-500">
+                Immersive <br/> Audio Stories.
+            </h1>
+            <button onclick="router.navigateTo('login')" class="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-accent rounded-full hover:bg-red-500 hover:scale-105 shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse-slow">
+                <span>Get Started</span>
+                <i class="fa-solid fa-arrow-right ml-3 group-hover:translate-x-1 transition-transform"></i>
+            </button>
+        </div>
+    </section>
+
+    <section id="view-login" class="view-section min-h-screen flex-col items-center justify-center px-4">
+        <div class="glass-panel p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="mx-auto w-16 h-16 bg-zinc-800/50 rounded-2xl border border-white/5 flex items-center justify-center mb-4 shadow-lg">
+                    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="4" y="4" width="4" height="16" rx="2" fill="#ef4444" class="animate-pulse-slow" />
+                        <rect x="11" y="7" width="4" height="10" rx="2" fill="#f4f4f5" />
+                        <rect x="18" y="10" width="4" height="4" rx="2" fill="#f4f4f5" />
+                    </svg>
+                </div>
+                <h2 id="auth-title" class="text-2xl font-bold text-white">Welcome Back</h2>
+            </div>
+            <form onsubmit="app.handleAuth(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-2">Email Address</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-3.5 text-zinc-500"><i class="fa-regular fa-envelope"></i></span>
+                        <input type="email" id="auth-email" class="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-2">Password</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-3.5 text-zinc-500"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="auth-password" class="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent" required>
+                    </div>
+                </div>
+                <button type="submit" id="auth-btn" class="w-full bg-accent hover:bg-red-500 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-red-500/20">Sign In</button>
+            </form>
+            <div class="mt-6 text-center text-sm text-zinc-500">
+                <button onclick="app.toggleAuthMode(event)" id="auth-toggle-btn" class="hover:text-white transition-colors">Don't have an account? Sign up</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="view-dashboard" class="view-section min-h-screen w-full flex-row hidden">
+        <aside class="w-64 glass-panel border-r border-white/5 flex-col hidden md:flex sticky top-0 h-screen overflow-y-auto">
+            <div class="p-6 flex items-center gap-3 text-white border-b border-white/5">
+                <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="4" height="16" rx="2" fill="#ef4444" class="animate-pulse-slow" />
+                    <rect x="11" y="7" width="4" height="10" rx="2" fill="#f4f4f5" />
+                    <rect x="18" y="10" width="4" height="4" rx="2" fill="#f4f4f5" />
+                </svg>
+                <span class="font-bold text-xl tracking-wide">EchoVault</span>
+            </div>
+            
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="#" onclick="app.loadView(event, 'library')" class="nav-item flex items-center gap-3 px-4 py-3 bg-accent/10 text-accent rounded-lg font-medium border border-accent/20"><i class="fa-solid fa-layer-group w-4"></i> My Library</a>
+                <a href="#" onclick="app.loadView(event, 'favorites')" class="nav-item flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"><i class="fa-solid fa-heart w-4"></i> Favorites</a>
+                <a href="#" onclick="app.loadView(event, 'history')" class="nav-item flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"><i class="fa-solid fa-clock-rotate-left w-4"></i> History</a>
+                
+                <a href="#" onclick="app.loadView(event, 'stats')" class="nav-item flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border-t border-white/5 mt-2 pt-4"><i class="fa-solid fa-chart-simple w-4 text-accent"></i> Your Stats</a>
+                
+                <div class="pt-6 pb-2 px-4 flex justify-between items-center text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                    <span>Your Folders</span>
+                    <button onclick="app.toggleCreateFolderModal(true)" class="hover:text-white transition-colors"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div id="sidebar-folders" class="space-y-1"></div>
+            </nav>
+            
+            <div class="p-4 border-t border-white/5">
+                <div class="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white cursor-pointer" onclick="app.handleLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col relative">
+            <header class="h-16 border-b border-white/5 glass-panel sticky top-0 z-20 flex items-center justify-between px-6">
+                <div class="md:hidden text-white text-lg font-bold">EchoVault</div>
+                
+                <div class="hidden md:flex flex-1 justify-center px-8">
+                    <div class="relative w-full max-w-lg group">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 text-zinc-400 group-focus-within:text-accent transition-colors"></i>
+                        <input type="text" id="search-input" oninput="app.handleSearch(this.value)" placeholder="Search your vault..." class="w-full bg-zinc-900/40 backdrop-blur-3xl border border-white/10 rounded-full py-2 pl-11 pr-4 text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent focus:bg-zinc-900/70 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.3)] placeholder-zinc-500">
+                    </div>
+                </div>
+
+                <button onclick="app.toggleAddModal(event, true)" class="bg-white text-zinc-900 px-4 py-2 rounded-lg text-sm font-bold hover:bg-zinc-200 transition-colors flex items-center gap-2 whitespace-nowrap">
+                    <i class="fa-solid fa-plus"></i> Add Story
+                </button>
+            </header>
+
+            <div class="p-6 md:p-8 flex-1 overflow-y-auto pb-52 relative">
+                
+                <div id="hero-banner-container" class="mb-8 hidden"></div>
+
+                <h2 id="dashboard-title" class="text-2xl font-bold text-white mb-6">Recent Stories</h2>
+                <div id="story-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+                
+                <div id="stats-view" class="hidden flex-col gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center shadow-lg">
+                            <i class="fa-solid fa-headphones text-3xl text-accent mb-3"></i>
+                            <h3 id="stat-hours" class="text-4xl font-black text-white">0</h3>
+                            <p class="text-zinc-400 text-sm mt-1">Hours Listened</p>
+                        </div>
+                        <div class="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center shadow-lg">
+                            <i class="fa-solid fa-heart text-3xl text-accent mb-3"></i>
+                            <h3 id="stat-favs" class="text-4xl font-black text-white">0</h3>
+                            <p class="text-zinc-400 text-sm mt-1">Favorite Stories</p>
+                        </div>
+                        <div class="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center shadow-lg">
+                            <i class="fa-solid fa-book-open text-3xl text-accent mb-3"></i>
+                            <h3 id="stat-count" class="text-4xl font-black text-white">0</h3>
+                            <p class="text-zinc-400 text-sm mt-1">Unique Stories</p>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-zinc-900 to-black border border-white/10 rounded-2xl p-8 relative overflow-hidden mt-4 shadow-2xl">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full blur-[80px] pointer-events-none"></div>
+                        <h3 class="text-2xl font-bold text-white mb-2">EchoVault Pro Listener</h3>
+                        <p class="text-zinc-400">Your total listening time has been successfully tracked across all sessions.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </section>
+
+    <div id="global-player" class="fixed bottom-4 md:bottom-6 left-4 md:left-[272px] right-4 md:right-6 h-[88px] bg-zinc-900/60 backdrop-blur-3xl border border-white/10 rounded-2xl z-[60] flex items-center justify-between px-4 md:px-6 transition-all duration-500 translate-y-32 opacity-0 shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
+        <div class="flex items-center gap-4 w-1/4 min-w-[180px]">
+            <div class="relative group h-14 w-14 rounded-lg overflow-hidden bg-zinc-800 shadow-md">
+                <img id="player-cover" src="" class="w-full h-full object-cover">
+            </div>
+            <div class="overflow-hidden">
+                <h4 id="player-title" class="text-white font-bold text-sm truncate hover:underline cursor-pointer">Select a track</h4>
+                <p id="player-uploader" class="text-zinc-400 text-xs truncate flex items-center gap-1">
+                    <i class="fa-solid fa-microphone-lines text-[10px]"></i> <span>Community Audio</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col items-center justify-center max-w-2xl px-4">
+            <div class="flex items-center gap-4 md:gap-6 mb-2">
+                <button onclick="app.playPrev()" title="Previous Track" class="text-zinc-400 hover:text-white transition-colors text-lg"><i class="fa-solid fa-backward-step"></i></button>
+                <button onclick="app.skipAudio(-15)" title="Skip Back 15s" class="text-zinc-400 hover:text-white transition-colors text-lg"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+                
+                <button onclick="app.toggleGlobalPlay()" class="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full hover:scale-105 transition-transform shadow-lg shadow-white/20">
+                    <i id="global-play-icon" class="fa-solid fa-play ml-0.5 text-sm"></i>
+                </button>
+                
+                <button onclick="app.skipAudio(15)" title="Skip Forward 15s" class="text-zinc-400 hover:text-white transition-colors text-lg"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+                <button onclick="app.playNext()" title="Next Track" class="text-zinc-400 hover:text-white transition-colors text-lg"><i class="fa-solid fa-forward-step"></i></button>
+            </div>
+            <div class="w-full flex items-center gap-3 text-[11px] text-zinc-400 font-medium">
+                <span id="player-time-current" class="w-8 text-right">0:00</span>
+                <div class="relative flex-1 group flex items-center h-4">
+                    <input type="range" id="player-progress" min="0" max="100" value="0" class="w-full absolute z-10" oninput="app.seekAudioPercent(this.value)">
+                    <div class="w-full h-1 bg-white/20 rounded-full absolute pointer-events-none overflow-hidden">
+                        <div id="player-progress-fill" class="h-full bg-accent w-0 transition-all duration-75"></div>
+                    </div>
+                </div>
+                <span id="player-time-total" class="w-8">0:00</span>
+            </div>
+        </div>
+
+        <div class="w-1/4 min-w-[180px] flex items-center justify-end gap-4 text-zinc-400">
+            <button onclick="app.cycleSleepTimer()" title="Sleep Timer" class="hover:text-white transition-colors relative group">
+                <i class="fa-solid fa-moon"></i>
+                <span id="sleep-timer-display" class="absolute -top-6 left-1/2 transform -translate-x-1/2 text-[10px] font-bold text-accent hidden">15m</span>
+            </button>
+            <button onclick="app.cycleSpeed()" title="Playback Speed" class="text-xs font-bold w-8 text-center hover:text-white transition-colors" id="speed-display">1x</button>
+            
+            <button onclick="app.toggleMute()" title="Mute/Unmute" class="hover:text-white transition-colors">
+                <i id="volume-icon" class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+            <div class="relative group flex items-center h-4 w-20">
+                <input type="range" id="player-volume" min="0" max="100" value="100" class="w-full absolute z-10" oninput="app.changeVolume(this.value)">
+                <div class="w-full h-1 bg-white/20 rounded-full absolute pointer-events-none overflow-hidden">
+                    <div id="player-volume-fill" class="h-full bg-white w-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="app.toggleAddModal(event, false)"></div>
+        <div class="relative glass-panel w-full max-w-lg p-6 rounded-xl border border-white/10 shadow-2xl m-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white">Import Audio Story</h3>
+                <button onclick="app.toggleAddModal(event, false)" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form onsubmit="app.handleAddStory(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-1">YouTube Link</label>
+                    <input type="url" id="input-yt-url" placeholder="https://youtube.com/watch?v=..." class="w-full bg-zinc-900/80 border border-zinc-700 rounded-lg p-2.5 text-white focus:border-accent focus:outline-none" required>
+                </div>
+                <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" onclick="app.toggleAddModal(event, false)" class="px-4 py-2 text-zinc-400 hover:text-white text-sm font-medium">Cancel</button>
+                    <button type="submit" id="save-story-btn" class="bg-accent hover:bg-red-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-red-500/20">Fetch & Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="details-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="app.toggleDetailsModal(event, false)"></div>
+        <div class="relative bg-zinc-900 border border-white/10 w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl m-4 p-6">
+            <div class="flex justify-between items-start mb-6 border-b border-white/5 pb-4">
+                <h3 id="details-title" class="text-2xl font-bold text-white pr-8 leading-tight">Story Title</h3>
+                <button onclick="app.toggleDetailsModal(event, false)" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h4 class="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Rating Analytics</h4>
+                    <div id="rating-bars" class="space-y-2"></div>
+                    <p id="total-ratings-text" class="text-xs text-zinc-500 mt-4 text-center"></p>
+                </div>
+                <div class="flex flex-col max-h-64 md:max-h-full">
+                    <h4 class="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Community Reviews</h4>
+                    <div id="reviews-list" class="flex-1 overflow-y-auto space-y-4 pr-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="write-review-modal" class="fixed inset-0 z-[70] hidden items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="app.toggleWriteReviewModal(event, false)"></div>
+        <div class="relative bg-zinc-900 border border-white/10 w-full max-w-md rounded-2xl shadow-2xl m-4 p-6">
+            <div class="flex justify-between items-start mb-6 border-b border-white/5 pb-4">
+                <h3 class="text-xl font-bold text-white">Write a Review</h3>
+                <button onclick="app.toggleWriteReviewModal(event, false)" class="text-zinc-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="flex flex-col gap-4">
+                <textarea id="modal-review-input" class="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white text-sm focus:border-accent focus:outline-none resize-none" rows="4" placeholder="Share your thoughts..."></textarea>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="app.toggleWriteReviewModal(event, false)" class="px-4 py-2 text-zinc-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
+                    <button type="button" onclick="app.submitReview(event)" class="bg-accent hover:bg-red-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-red-500/20 transition-all">Post Review</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-folder-modal" class="fixed inset-0 z-[70] hidden items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="app.toggleCreateFolderModal(false)"></div>
+        <div class="relative bg-zinc-900 border border-white/10 w-full max-w-sm rounded-2xl shadow-2xl m-4 p-6">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-xl font-bold text-white">Create New Folder</h3>
+                <button onclick="app.toggleCreateFolderModal(false)" class="text-zinc-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <input type="text" id="new-folder-name" placeholder="e.g., Sci-Fi Thrillers" class="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white text-sm focus:border-accent focus:outline-none mb-6" onkeypress="if(event.key === 'Enter') app.submitCreateFolder()">
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="app.toggleCreateFolderModal(false)" class="px-4 py-2 text-zinc-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
+                <button type="button" onclick="app.submitCreateFolder()" class="bg-accent hover:bg-red-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-red-500/20 transition-all">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-to-folder-modal" class="fixed inset-0 z-[70] hidden items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="app.toggleAddToFolderModal(false)"></div>
+        <div class="relative bg-zinc-900 border border-white/10 w-full max-w-sm rounded-2xl shadow-2xl m-4 p-6 flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-start mb-4 border-b border-white/5 pb-4">
+                <h3 class="text-xl font-bold text-white">Save to Folder</h3>
+                <button onclick="app.toggleAddToFolderModal(false)" class="text-zinc-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div id="folder-selection-list" class="flex-1 overflow-y-auto space-y-2 mb-4"></div>
+            <div class="flex justify-end pt-2">
+                <button type="button" onclick="app.toggleAddToFolderModal(false)" class="px-4 py-2 text-zinc-400 hover:text-white text-sm font-medium transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div style="position: fixed; top: 0; left: 0; width: 200px; height: 200px; opacity: 0.001; pointer-events: none; z-index: -100;">
+        <div id="hidden-yt-player"></div>
+    </div>
+
+    <script>
+        let ytPlayer;
+        let isPlaying = false;
+        let currentlyPlayingId = null;
+        let authMode = 'login'; 
+        let currentView = 'library'; 
+        let currentReviewStoryId = null;
+        let currentPlaybackSpeed = 1;
+        let sleepTimerMinutes = 0;
+        let sleepTimerInterval = null;
+
+        const API_URL = 'https://https://echovault-2002.onrender.com/api';
+
+        const getHeaders = () => ({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('echovault_token')
+        });
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return "0:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = message;
+            toast.classList.remove('opacity-0', 'translate-y-10', 'pointer-events-none');
+            setTimeout(() => toast.classList.add('opacity-0', 'translate-y-10', 'pointer-events-none'), 3000);
+        }
+
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('hidden-yt-player', {
+                height: '200', width: '200', 
+                playerVars: { 'playsinline': 1, 'autoplay': 0, 'origin': window.location.origin },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
+        }
+
+        function onPlayerStateChange(event) {
+            const playIcon = document.getElementById('global-play-icon');
+            if (event.data === YT.PlayerState.PLAYING) {
+                isPlaying = true;
+                playIcon.classList.replace('fa-play', 'fa-pause');
+                app.startProgressTracking();
+                app.renderGrid(); 
+            } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                isPlaying = false;
+                playIcon.classList.replace('fa-pause', 'fa-play');
+                clearInterval(app.progressInterval);
+                app.saveCurrentPosition(); // 🚨 NEW: INSTANT SAVE WHEN PAUSED
+                app.renderGrid(); 
+                if(event.data === YT.PlayerState.ENDED) app.playNext();
+            }
+        }
+
+        const router = {
+            navigateTo: (viewName) => {
+                document.querySelectorAll('.view-section').forEach(el => {
+                    el.classList.remove('active');
+                    setTimeout(() => { if(!el.classList.contains('active')) el.style.display = 'none'; }, 500); 
+                });
+                const target = document.getElementById(`view-${viewName}`);
+                if (target) {
+                    target.style.display = 'flex'; 
+                    void target.offsetWidth;
+                    target.classList.add('active');
+                }
+            }
+        };
+
+        const app = {
+            stories: [],
+            folders: [],
+            progressInterval: null,
+            currentStoryToFolder: null,
+
+            init: async () => {
+                const token = localStorage.getItem('echovault_token');
+                if (token) {
+                    router.navigateTo('dashboard');
+                    await app.fetchFolders();
+                    await app.fetchStories();
+                    app.setupKeyboardShortcuts();
+                    
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const playId = urlParams.get('play');
+                    if (playId) {
+                        showToast("Loading shared story...");
+                        app.searchYouTube(playId); 
+                        window.history.replaceState({}, document.title, "/"); 
+                    }
+                }
+            },
+
+            // 🚨 NEW: DEDICATED INSTANT SAVE FUNCTION
+            saveCurrentPosition: () => {
+                if (ytPlayer && currentlyPlayingId) {
+                    const current = ytPlayer.getCurrentTime() || 0;
+                    fetch(`${API_URL}/history/${currentlyPlayingId}/position`, { 
+                        method: 'POST', headers: getHeaders(), body: JSON.stringify({ position: current })
+                    }).catch(()=>{});
+                }
+            },
+
+            setupKeyboardShortcuts: () => {
+                document.addEventListener('keydown', (e) => {
+                    const activeTag = document.activeElement.tagName;
+                    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+                    if (!currentlyPlayingId) return; 
+
+                    if (e.code === 'Space') {
+                        e.preventDefault(); 
+                        app.toggleGlobalPlay();
+                    } else if (e.code === 'ArrowRight') {
+                        e.preventDefault();
+                        app.skipAudio(15);
+                    } else if (e.code === 'ArrowLeft') {
+                        e.preventDefault();
+                        app.skipAudio(-15);
+                    } else if (e.key.toLowerCase() === 'm') {
+                        e.preventDefault();
+                        app.toggleMute();
+                    }
+                });
+            },
+
+            setupMediaSession: (story) => {
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: story.title,
+                        artist: story.uploader || 'Community Audio',
+                        album: 'EchoVault Library',
+                        artwork: [{ src: story.cover, sizes: '512x512', type: 'image/jpeg' }]
+                    });
+
+                    navigator.mediaSession.setActionHandler('play', () => app.toggleGlobalPlay());
+                    navigator.mediaSession.setActionHandler('pause', () => app.toggleGlobalPlay());
+                    navigator.mediaSession.setActionHandler('previoustrack', () => app.playPrev());
+                    navigator.mediaSession.setActionHandler('nexttrack', () => app.playNext());
+                    navigator.mediaSession.setActionHandler('seekbackward', () => app.skipAudio(-15));
+                    navigator.mediaSession.setActionHandler('seekforward', () => app.skipAudio(15));
+                }
+            },
+
+            toggleAuthMode: (e) => {
+                if(e) e.preventDefault();
+                authMode = authMode === 'login' ? 'register' : 'login';
+                document.getElementById('auth-title').innerText = authMode === 'login' ? 'Welcome Back' : 'Create Account';
+                document.getElementById('auth-btn').innerText = authMode === 'login' ? 'Sign In' : 'Sign Up';
+            },
+
+            handleAuth: async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('auth-email').value;
+                const password = document.getElementById('auth-password').value;
+                const endpoint = authMode === 'login' ? '/login' : '/register';
+                
+                try {
+                    const res = await fetch(`${API_URL}${endpoint}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        if (authMode === 'register') {
+                            showToast("Registration successful! Please sign in.");
+                            app.toggleAuthMode(); 
+                            document.getElementById('auth-password').value = '';
+                        } else {
+                            localStorage.setItem('echovault_token', data.token);
+                            await app.fetchFolders();
+                            await app.fetchStories();
+                            app.setupKeyboardShortcuts();
+                            router.navigateTo('dashboard');
+                            showToast("Welcome back to EchoVault.");
+                        }
+                    } else showToast(data.error);
+                } catch (err) { showToast("Server connection failed."); }
+            },
+
+            handleLogout: () => {
+                localStorage.removeItem('echovault_token'); 
+                if(ytPlayer && isPlaying) ytPlayer.pauseVideo();
+                isPlaying = false;
+                document.getElementById('auth-password').value = ''; 
+                document.getElementById('global-player').classList.add('translate-y-32', 'opacity-0');
+                router.navigateTo('landing');
+            },
+
+            loadView: async (e, viewType, folderId = null, folderName = null) => {
+                if(e) e.preventDefault();
+                currentView = viewType;
+                document.getElementById('search-input').value = ''; 
+                
+                document.querySelectorAll('.nav-item').forEach(el => {
+                    el.className = "nav-item flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors";
+                });
+                if(e && e.currentTarget) e.currentTarget.className = "nav-item flex items-center gap-3 px-4 py-3 bg-accent/10 text-accent rounded-lg font-medium border border-accent/20";
+                
+                if (viewType === 'stats') {
+                    document.getElementById('story-grid').classList.add('hidden');
+                    document.getElementById('stats-view').classList.remove('hidden');
+                    document.getElementById('dashboard-title').innerText = "Your Listening Profile";
+                    app.renderStats();
+                    return;
+                } else {
+                    document.getElementById('story-grid').classList.remove('hidden');
+                    document.getElementById('stats-view').classList.add('hidden');
+                }
+
+                const titles = { 'library': 'Recent Stories', 'favorites': 'My Favorites', 'history': 'Listening History' };
+                document.getElementById('dashboard-title').innerText = folderName || titles[viewType];
+                
+                if (viewType === 'folder') app.fetchFolderStories(folderId);
+                else app.fetchStories();
+            },
+
+            fetchStories: async () => {
+                let endpoint = '/stories';
+                if (currentView === 'favorites') endpoint = '/favorites';
+                if (currentView === 'history') endpoint = '/history';
+                try {
+                    const res = await fetch(`${API_URL}${endpoint}`, { headers: getHeaders() });
+                    if(res.status === 401) return app.handleLogout(); 
+                    app.stories = await res.json();
+                    app.renderHeroBanner(); 
+                    app.renderGrid();
+                } catch (err) {}
+            },
+
+            fetchFolders: async () => {
+                try {
+                    const res = await fetch(`${API_URL}/folders`, { headers: getHeaders() });
+                    app.folders = await res.json();
+                    
+                    document.getElementById('sidebar-folders').innerHTML = app.folders.map(f => `
+                        <a href="#" onclick="app.loadView(event, 'folder', ${f.id}, '${f.name.replace(/'/g, "\\'")}')" class="nav-item flex items-center gap-3 px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">
+                            <i class="fa-solid fa-folder w-4"></i> <span class="truncate">${f.name}</span>
+                        </a>
+                    `).join('');
+                } catch (e) {}
+            },
+
+            fetchFolderStories: async (folderId) => {
+                try {
+                    const res = await fetch(`${API_URL}/folders/${folderId}/stories`, { headers: getHeaders() });
+                    app.stories = await res.json();
+                    app.renderGrid();
+                } catch (e) {}
+            },
+
+            // 🚨 NEW: BULLETPROOF BANNER RENDERING
+            renderHeroBanner: async () => {
+                if (currentView !== 'library') {
+                    document.getElementById('hero-banner-container').classList.add('hidden');
+                    return;
+                }
+                try {
+                    const res = await fetch(`${API_URL}/history`, { headers: getHeaders() });
+                    const history = await res.json();
+                    
+                    if (history && history.length > 0) {
+                        const story = history[0];
+                        
+                        // We ask the backend directly for this specific story's exact time
+                        const posRes = await fetch(`${API_URL}/history/${story.id}/position`, { headers: getHeaders() });
+                        let savedTime = 0;
+                        if(posRes.ok) {
+                            const posData = await posRes.json();
+                            savedTime = posData.position || 0;
+                        }
+
+                        if (savedTime > 10) {
+                            const banner = document.getElementById('hero-banner-container');
+                            banner.classList.remove('hidden');
+                            banner.innerHTML = `
+                                <div class="relative w-full h-64 md:h-80 rounded-3xl overflow-hidden group cursor-pointer shadow-2xl border border-white/10" onclick="app.playAudio(event, ${story.id}, '${story.yt_id}')">
+                                    <img src="${story.cover}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
+                                    <div class="absolute bottom-0 left-0 p-6 md:p-8 w-full">
+                                        <p class="text-accent font-bold text-xs md:text-sm mb-2 tracking-widest uppercase flex items-center gap-2"><i class="fa-solid fa-headphones"></i> Continue Listening</p>
+                                        <h2 class="text-3xl md:text-5xl font-black text-white mb-4 line-clamp-1">${story.title}</h2>
+                                        <button class="bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 transition-transform flex items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                                            <i class="fa-solid fa-play"></i> Resume from ${formatTime(savedTime)}
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            return; 
+                        }
+                    }
+                    document.getElementById('hero-banner-container').classList.add('hidden');
+                } catch(e) {
+                    console.log("Banner Error: ", e);
+                }
+            },
+
+            toggleCreateFolderModal: (show) => {
+                const modal = document.getElementById('create-folder-modal');
+                modal.classList.toggle('hidden', !show);
+                modal.classList.toggle('flex', show);
+                if (show) {
+                    document.getElementById('new-folder-name').value = '';
+                    setTimeout(() => document.getElementById('new-folder-name').focus(), 50);
+                }
+            },
+
+            submitCreateFolder: async () => {
+                const name = document.getElementById('new-folder-name').value.trim();
+                if(!name) return showToast("Folder name cannot be empty.");
+                try {
+                    await fetch(`${API_URL}/folders`, {
+                        method: 'POST', headers: getHeaders(), body: JSON.stringify({ name: name })
+                    });
+                    app.fetchFolders();
+                    app.toggleCreateFolderModal(false);
+                    showToast("Folder created successfully!");
+                } catch (e) { showToast("Failed to create folder"); }
+            },
+
+            toggleAddToFolderModal: (show, storyId = null) => {
+                const modal = document.getElementById('add-to-folder-modal');
+                modal.classList.toggle('hidden', !show);
+                modal.classList.toggle('flex', show);
+                
+                if (show && storyId) {
+                    app.currentStoryToFolder = storyId;
+                    if (app.folders.length === 0) {
+                        document.getElementById('folder-selection-list').innerHTML = `<p class="text-zinc-500 text-sm text-center py-4">No folders created yet.</p>`;
+                    } else {
+                        document.getElementById('folder-selection-list').innerHTML = app.folders.map(f => `
+                            <button onclick="app.submitAddToFolder(${f.id})" class="w-full text-left px-4 py-3 rounded-lg bg-zinc-800/50 hover:bg-zinc-700 text-white text-sm transition-colors border border-white/5 flex items-center gap-3">
+                                <i class="fa-solid fa-folder text-accent"></i> ${f.name}
+                            </button>
+                        `).join('');
+                    }
+                } else {
+                    app.currentStoryToFolder = null;
+                }
+            },
+
+            submitAddToFolder: async (folderId) => {
+                const storyId = app.currentStoryToFolder;
+                if(!storyId || !folderId) return;
+                try {
+                    const res = await fetch(`${API_URL}/folders/${folderId}/toggle`, {
+                        method: 'POST', headers: getHeaders(), body: JSON.stringify({ story_id: storyId })
+                    });
+                    const data = await res.json();
+                    showToast(data.message);
+                    app.toggleAddToFolderModal(false);
+                } catch(err) { showToast("Failed to update folder"); }
+            },
+
+            handleSearch: (query) => {
+                const lowerQuery = query.toLowerCase();
+                const filteredStories = app.stories.filter(s => s.title.toLowerCase().includes(lowerQuery));
+                app.renderGrid(filteredStories);
+
+                if (query.trim().length > 2) {
+                    const grid = document.getElementById('story-grid');
+                    const searchBtnHTML = `
+                        <div class="col-span-full mt-8 flex flex-col items-center justify-center p-8 border border-dashed border-white/20 rounded-2xl bg-zinc-900/20">
+                            <p class="text-zinc-400 mb-4">Can't find it in your vault?</p>
+                            <button onclick="app.searchYouTube('${query.replace(/'/g, "\\'")}')" class="bg-white text-black px-6 py-3 rounded-full font-bold hover:scale-105 transition-transform flex items-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                                <i class="fa-brands fa-youtube text-red-600 text-xl"></i> Search YouTube Global
+                            </button>
+                        </div>
+                        <div class="h-24 col-span-full pointer-events-none"></div> `;
+                    if(filteredStories.length === 0) grid.innerHTML = searchBtnHTML;
+                    else grid.innerHTML += searchBtnHTML;
+                }
+            },
+
+            searchYouTube: async (query) => {
+                const grid = document.getElementById('story-grid');
+                grid.innerHTML = `<div class="col-span-full text-center py-12"><i class="fa-solid fa-circle-notch fa-spin text-accent text-3xl mb-4"></i><p class="text-zinc-400">Searching global database...</p></div>`;
+                
+                try {
+                    const res = await fetch(`${API_URL}/search/youtube?q=${encodeURIComponent(query)}`, { headers: getHeaders() });
+                    const results = await res.json();
+                    
+                    if (results.length === 0) {
+                        grid.innerHTML = `<div class="col-span-full text-center py-12"><p class="text-zinc-500">No results found on YouTube.</p></div>`;
+                        return;
+                    }
+
+                    grid.innerHTML = `<div class="col-span-full mb-4"><h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-brands fa-youtube text-red-500"></i> Global Results</h3><p class="text-sm text-zinc-400">Click play to instantly listen. It will be AI-tagged and imported to your Vault in the background.</p></div>` + results.map(story => `
+                        <div class="group relative rounded-xl overflow-hidden bg-zinc-900 border border-red-500/20 hover:border-red-500/50 transition-all hover:translate-y-[-4px] hover:shadow-[0_10px_30px_rgba(239,68,68,0.15)] flex flex-col">
+                            <div class="h-48 overflow-hidden relative cursor-pointer" onclick="app.playAndImport('${story.yt_id}', '${story.title.replace(/'/g, "\\'")}', '${story.uploader.replace(/'/g, "\\'")}', '${story.cover}')">
+                                <img src="${story.cover}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
+                                
+                                <div class="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1">
+                                    <i class="fa-solid fa-cloud-arrow-down"></i> NOT IN VAULT
+                                </div>
+
+                                <button type="button" class="absolute inset-0 m-auto w-14 h-14 rounded-full bg-red-600 text-white flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.5)] transform scale-90 group-hover:scale-110 transition-all duration-300 z-10">
+                                    <i class="fa-solid fa-play ml-1 text-xl"></i>
+                                </button>
+                            </div>
+                            <div class="p-4 flex-1">
+                                <h3 class="text-white font-bold truncate">${story.title}</h3>
+                                <div class="mt-1 text-xs text-zinc-400 flex items-center gap-1"><i class="fa-solid fa-microphone-lines text-[10px]"></i> ${story.uploader}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                } catch (e) {
+                    showToast("Global search failed.");
+                    app.renderGrid();
+                }
+            },
+
+            playAndImport: (ytId, title, uploader, cover) => {
+                if (!ytPlayer || typeof ytPlayer.playVideo !== 'function') return showToast("Audio engine booting up...");
+                
+                ytPlayer.loadVideoById({ 'videoId': ytId, 'startSeconds': 0 });
+                currentlyPlayingId = 'temp-' + ytId; 
+                
+                document.getElementById('player-cover').src = cover;
+                document.getElementById('player-title').innerText = title;
+                document.getElementById('player-uploader').innerHTML = `<i class="fa-solid fa-microphone-lines text-[10px]"></i> <span>${uploader}</span>`;
+                document.getElementById('global-player').classList.remove('translate-y-32', 'opacity-0');
+                
+                app.setupMediaSession({title: title, uploader: uploader, cover: cover});
+                showToast("Playing audio! Importing to Vault in background...");
+
+                const ytUrl = `https://youtube.com/watch?v=${ytId}`;
+                fetch(`${API_URL}/stories`, {
+                    method: 'POST', 
+                    headers: getHeaders(), 
+                    body: JSON.stringify({ url: ytUrl })
+                }).then(res => res.json()).then(data => {
+                    if(data.message) {
+                        showToast("Added to Vault! AI Tagging Complete.");
+                        app.fetchStories(); 
+                    }
+                }).catch(err => console.log("Background import failed", err));
+            },
+
+            toggleAddModal: (e, show) => {
+                if(e) e.preventDefault();
+                const modal = document.getElementById('add-modal');
+                modal.classList.toggle('hidden', !show);
+                modal.classList.toggle('flex', show);
+            },
+
+            handleAddStory: async (e) => {
+                e.preventDefault();
+                const ytUrl = document.getElementById('input-yt-url').value;
+                const btn = document.getElementById('save-story-btn');
+                
+                const isPlaylist = ytUrl.includes('list=');
+                btn.innerText = isPlaylist ? "Extracting Playlist..." : "Extracting Title...";
+                btn.disabled = true;
+
+                if(isPlaylist) showToast("Fetching playlist... this might take a moment.");
+
+                const endpoint = isPlaylist ? '/playlist' : '/stories';
+
+                try {
+                    const res = await fetch(`${API_URL}${endpoint}`, {
+                        method: 'POST', headers: getHeaders(), body: JSON.stringify({ url: ytUrl })
+                    });
+                    const data = await res.json();
+                    if(res.ok) {
+                        showToast(data.message);
+                        if(currentView !== 'stats') await app.fetchStories(); 
+                        app.toggleAddModal(null, false);
+                        e.target.reset();
+                    } else showToast(data.error || "Invalid YouTube URL");
+                } catch (err) { showToast("Failed to connect to server."); }
+                finally { btn.innerText = "Fetch & Save"; btn.disabled = false; }
+            },
+
+            deleteStory: async (e, storyId) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                if (!confirm("Are you sure you want to permanently delete this story from the vault?")) return;
+                try {
+                    const res = await fetch(`${API_URL}/stories/${storyId}`, { method: 'DELETE', headers: getHeaders() });
+                    if (res.ok) {
+                        showToast("Story deleted.");
+                        if (currentlyPlayingId === storyId) {
+                            ytPlayer.pauseVideo();
+                            document.getElementById('global-player').classList.add('translate-y-32', 'opacity-0');
+                            currentlyPlayingId = null;
+                        }
+                        await app.fetchStories();
+                    }
+                } catch (err) {}
+            },
+
+            toggleFavorite: async (e, storyId) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                try {
+                    await fetch(`${API_URL}/favorites/${storyId}`, { method: 'POST', headers: getHeaders() });
+                    await app.fetchStories(); 
+                } catch (err) {}
+            },
+
+            shareStory: (e, ytId, title) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                
+                const shareUrl = `${window.location.origin}/?play=${ytId}`;
+                
+                if (navigator.share) {
+                    navigator.share({ title: `Listen to ${title} on EchoVault`, url: shareUrl }).catch(()=>{});
+                } else {
+                    navigator.clipboard.writeText(shareUrl);
+                    showToast("Link copied to clipboard! Send it to a friend.");
+                }
+            },
+
+            playAudio: async (e, storyId, ytId) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                if (!ytPlayer || typeof ytPlayer.playVideo !== 'function') return showToast("Audio engine booting up. Try again in a moment.");
+
+                const story = app.stories.find(s => s.id === storyId);
+
+                if (currentlyPlayingId === storyId && isPlaying) {
+                    ytPlayer.pauseVideo();
+                } else if (currentlyPlayingId === storyId && !isPlaying) {
+                    ytPlayer.playVideo();
+                } else {
+                    let startPos = 0;
+                    try {
+                        const posRes = await fetch(`${API_URL}/history/${storyId}/position`, { headers: getHeaders() });
+                        if(posRes.ok) {
+                            const posData = await posRes.json();
+                            startPos = posData.position || 0;
+                        }
+                    } catch(err) {}
+
+                    ytPlayer.loadVideoById({ 'videoId': ytId, 'startSeconds': startPos });
+                    currentlyPlayingId = storyId;
+                    
+                    document.getElementById('player-cover').src = story.cover;
+                    document.getElementById('player-title').innerText = story.title;
+                    document.getElementById('player-uploader').innerHTML = `<i class="fa-solid fa-microphone-lines text-[10px]"></i> <span>${story.uploader || 'Community Audio'}</span>`;
+                    
+                    document.getElementById('global-player').classList.remove('translate-y-32', 'opacity-0');
+                    ytPlayer.setPlaybackRate(currentPlaybackSpeed);
+
+                    app.setupMediaSession(story);
+                }
+                app.renderGrid(); 
+            },
+
+            toggleGlobalPlay: () => {
+                if (!ytPlayer || !currentlyPlayingId) return;
+                if (isPlaying) ytPlayer.pauseVideo();
+                else ytPlayer.playVideo();
+            },
+
+            // 🚨 NEW: INSTANT SAVE WHEN SKIPPING
+            skipAudio: (seconds) => {
+                if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+                    const current = ytPlayer.getCurrentTime();
+                    const duration = ytPlayer.getDuration();
+                    let newTime = current + seconds;
+                    if (newTime < 0) newTime = 0;
+                    if (newTime > duration) newTime = duration;
+                    ytPlayer.seekTo(newTime, true);
+                    app.saveCurrentPosition(); 
+                }
+            },
+
+            playNext: () => {
+                if(!currentlyPlayingId || app.stories.length === 0) return;
+                const idx = app.stories.findIndex(s => s.id === currentlyPlayingId);
+                if(idx !== -1 && idx < app.stories.length - 1) {
+                    const next = app.stories[idx + 1];
+                    app.playAudio(null, next.id, next.yt_id);
+                } else {
+                    const first = app.stories[0];
+                    app.playAudio(null, first.id, first.yt_id);
+                }
+            },
+
+            playPrev: () => {
+                if(!currentlyPlayingId || app.stories.length === 0) return;
+                const idx = app.stories.findIndex(s => s.id === currentlyPlayingId);
+                if(idx > 0) {
+                    const prev = app.stories[idx - 1];
+                    app.playAudio(null, prev.id, prev.yt_id);
+                }
+            },
+
+            changeVolume: (val) => {
+                if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+                    ytPlayer.setVolume(val);
+                    document.getElementById('player-volume-fill').style.width = `${val}%`;
+                    
+                    const icon = document.getElementById('volume-icon');
+                    if(val == 0) icon.className = "fa-solid fa-volume-xmark text-xs";
+                    else if(val < 50) icon.className = "fa-solid fa-volume-low text-xs";
+                    else icon.className = "fa-solid fa-volume-high text-xs";
+                }
+            },
+
+            toggleMute: () => {
+                if (ytPlayer && typeof ytPlayer.isMuted === 'function') {
+                    const slider = document.getElementById('player-volume');
+                    const fill = document.getElementById('player-volume-fill');
+                    const icon = document.getElementById('volume-icon');
+
+                    if (ytPlayer.isMuted()) {
+                        ytPlayer.unMute();
+                        const val = ytPlayer.getVolume();
+                        slider.value = val;
+                        fill.style.width = `${val}%`;
+                        icon.className = val < 50 ? "fa-solid fa-volume-low text-xs" : "fa-solid fa-volume-high text-xs";
+                        showToast("Unmuted");
+                    } else {
+                        ytPlayer.mute();
+                        slider.value = 0;
+                        fill.style.width = `0%`;
+                        icon.className = "fa-solid fa-volume-xmark text-xs";
+                        showToast("Muted");
+                    }
+                }
+            },
+
+            // 🚨 NEW: INSTANT SAVE WHEN CLICKING PROGRESS BAR
+            seekAudioPercent: (val) => {
+                if (ytPlayer && typeof ytPlayer.seekTo === 'function') {
+                    const duration = ytPlayer.getDuration();
+                    const seekToTime = (val / 100) * duration;
+                    ytPlayer.seekTo(seekToTime, true);
+                    document.getElementById('player-progress-fill').style.width = `${val}%`;
+                    app.saveCurrentPosition(); 
+                }
+            },
+
+            cycleSpeed: () => {
+                if (!ytPlayer || typeof ytPlayer.setPlaybackRate !== 'function') return;
+                const speeds = [1, 1.25, 1.5, 2];
+                let nextIdx = speeds.indexOf(currentPlaybackSpeed) + 1;
+                if (nextIdx >= speeds.length) nextIdx = 0;
+                
+                currentPlaybackSpeed = speeds[nextIdx];
+                ytPlayer.setPlaybackRate(currentPlaybackSpeed);
+                
+                document.getElementById('speed-display').innerText = `${currentPlaybackSpeed}x`;
+                document.getElementById('speed-display').classList.toggle('text-accent', currentPlaybackSpeed !== 1);
+            },
+
+            cycleSleepTimer: () => {
+                const times = [0, 15, 30, 60]; 
+                let nextIdx = times.indexOf(sleepTimerMinutes) + 1;
+                if (nextIdx >= times.length) nextIdx = 0;
+                
+                sleepTimerMinutes = times[nextIdx];
+                const display = document.getElementById('sleep-timer-display');
+                if (sleepTimerInterval) clearInterval(sleepTimerInterval);
+
+                if (sleepTimerMinutes === 0) {
+                    display.classList.add('hidden');
+                    showToast("Sleep timer off.");
+                } else {
+                    display.classList.remove('hidden');
+                    display.innerText = `${sleepTimerMinutes}m`;
+                    showToast(`Timer set: ${sleepTimerMinutes}m`);
+                    
+                    let secondsLeft = sleepTimerMinutes * 60;
+                    sleepTimerInterval = setInterval(() => {
+                        secondsLeft--;
+                        if (secondsLeft <= 0) {
+                            clearInterval(sleepTimerInterval);
+                            sleepTimerMinutes = 0;
+                            display.classList.add('hidden');
+                            if(ytPlayer && isPlaying) ytPlayer.pauseVideo();
+                        } else if (secondsLeft % 60 === 0) {
+                            display.innerText = `${secondsLeft / 60}m`;
+                        }
+                    }, 1000);
+                }
+            },
+
+            startProgressTracking: () => {
+                clearInterval(app.progressInterval);
+                let syncCounter = 0;
+                app.progressInterval = setInterval(() => {
+                    if (ytPlayer && isPlaying) {
+                        const current = ytPlayer.getCurrentTime() || 0;
+                        const duration = ytPlayer.getDuration() || 0;
+                        
+                        document.getElementById('player-time-current').innerText = formatTime(current);
+                        document.getElementById('player-time-total').innerText = formatTime(duration);
+                        
+                        if (duration > 0) {
+                            const percent = (current / duration) * 100;
+                            document.getElementById('player-progress').value = percent;
+                            document.getElementById('player-progress-fill').style.width = `${percent}%`;
+                        }
+
+                        syncCounter++;
+                        if (syncCounter >= 10 && currentlyPlayingId) {
+                            fetch(`${API_URL}/history/${currentlyPlayingId}/position`, { 
+                                method: 'POST', headers: getHeaders(), body: JSON.stringify({ position: current })
+                            }).catch(()=>{});
+                            syncCounter = 0;
+                        }
+                    }
+                }, 1000);
+            },
+
+            rateStory: async (e, id, rating) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                try {
+                    await fetch(`${API_URL}/stories/${id}/rate`, {
+                        method: 'POST', headers: getHeaders(), body: JSON.stringify({ rating: rating })
+                    });
+                    showToast(`You rated this ${rating} stars!`);
+                    await app.fetchStories();
+                } catch (err) {}
+            },
+
+            toggleWriteReviewModal: (e, show, storyId = null) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                const modal = document.getElementById('write-review-modal');
+                modal.classList.toggle('hidden', !show);
+                modal.classList.toggle('flex', show);
+                if (show && storyId) {
+                    currentReviewStoryId = storyId;
+                    document.getElementById('modal-review-input').value = ''; 
+                    setTimeout(() => document.getElementById('modal-review-input').focus(), 50);
+                } else if (!show) currentReviewStoryId = null;
+            },
+
+            submitReview: async (e) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                const id = currentReviewStoryId;
+                if (!id) return;
+                const input = document.getElementById('modal-review-input');
+                if(!input.value.trim()) return showToast("Review cannot be empty");
+
+                try {
+                    await fetch(`${API_URL}/stories/${id}/review`, {
+                        method: 'POST', headers: getHeaders(), body: JSON.stringify({ review_text: input.value.trim() })
+                    });
+                    showToast("Review published!");
+                    app.toggleWriteReviewModal(null, false);
+                } catch (err) {}
+            },
+
+            toggleDetailsModal: (e, show) => {
+                if(e) e.preventDefault();
+                const modal = document.getElementById('details-modal');
+                modal.classList.toggle('hidden', !show);
+                modal.classList.toggle('flex', show);
+            },
+
+            openStoryDetails: async (e, story) => {
+                if(e) { e.preventDefault(); e.stopPropagation(); }
+                document.getElementById('details-title').innerText = story.title;
+                app.toggleDetailsModal(null, true);
+                document.getElementById('reviews-list').innerHTML = `<p class="text-xs text-zinc-500">Loading details...</p>`;
+                document.getElementById('rating-bars').innerHTML = '';
+
+                try {
+                    const res = await fetch(`${API_URL}/stories/${story.id}/details`, { headers: getHeaders() });
+                    const data = await res.json();
+                    
+                    if(data.reviews.length === 0) {
+                        document.getElementById('reviews-list').innerHTML = `<p class="text-sm text-zinc-500 italic">No reviews yet. Be the first!</p>`;
+                    } else {
+                        document.getElementById('reviews-list').innerHTML = data.reviews.map(r => `
+                            <div class="bg-zinc-800/50 p-3 rounded-lg border border-white/5">
+                                <p class="text-xs text-zinc-400 font-bold mb-1">${r.email.split('@')[0]}</p>
+                                <p class="text-sm text-zinc-200 leading-relaxed">${r.review_text}</p>
+                            </div>
+                        `).join('');
+                    }
+
+                    document.getElementById('total-ratings-text').innerText = `${data.total_ratings} total ratings`;
+                    const barsHtml = [5,4,3,2,1].map(star => {
+                        const count = data.distribution[star];
+                        const percentage = data.total_ratings > 0 ? (count / data.total_ratings) * 100 : 0;
+                        return `
+                            <div class="flex items-center gap-3 text-sm">
+                                <span class="text-zinc-400 w-2">${star}</span>
+                                <i class="fa-solid fa-star text-yellow-500 text-[10px]"></i>
+                                <div class="flex-1 h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div class="h-full bg-accent rounded-full" style="width: ${percentage}%"></div>
+                                </div>
+                                <span class="text-xs text-zinc-500 w-4 text-right">${count}</span>
+                            </div>
+                        `;
+                    }).join('');
+                    document.getElementById('rating-bars').innerHTML = barsHtml;
+                } catch (err) {}
+            },
+
+            renderStats: async () => {
+                try {
+                    const res = await fetch(`${API_URL}/stats`, { headers: getHeaders() });
+                    const data = await res.json();
+                    const hours = (data.total_seconds / 3600).toFixed(1);
+                    document.getElementById('stat-hours').innerText = hours;
+                    document.getElementById('stat-favs').innerText = data.favorites_count;
+                    document.getElementById('stat-count').innerText = data.stories_listened;
+                } catch(e) {}
+            },
+
+            renderGrid: (filteredStories = null) => {
+                const grid = document.getElementById('story-grid');
+                const storiesToRender = filteredStories || app.stories;
+
+                if (storiesToRender.length === 0) { 
+                    grid.innerHTML = `<div class="col-span-full text-center py-12"><p class="text-zinc-500 text-lg">No stories found.</p></div>`; 
+                    return; 
+                }
+
+                grid.innerHTML = storiesToRender.map(story => `
+                    <div class="group relative rounded-xl overflow-hidden bg-zinc-900/40 border border-white/5 hover:border-white/20 transition-all hover:translate-y-[-4px] hover:shadow-xl flex flex-col">
+                        
+                        <div class="h-48 overflow-hidden relative cursor-pointer" onclick="app.playAudio(event, ${story.id}, '${story.yt_id}')">
+                            <img src="${story.cover}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                            <div class="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors"></div>
+                            
+                            <button type="button" onclick="app.deleteStory(event, ${story.id})" title="Delete Story" class="absolute top-3 left-3 w-8 h-8 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-zinc-400 hover:text-red-500 hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100 shadow-lg">
+                                <i class="fa-solid fa-trash-can text-sm"></i>
+                            </button>
+
+                            <button type="button" onclick="app.toggleFavorite(event, ${story.id})" title="Favorite" class="absolute top-3 right-3 text-xl transition-transform hover:scale-110 z-10">
+                                <i class="${story.is_favorited ? 'fa-solid text-accent' : 'fa-regular text-white'} fa-heart drop-shadow-lg"></i>
+                            </button>
+
+                            <button type="button" onclick="app.toggleAddToFolderModal(true, ${story.id})" title="Add to Folder" class="absolute top-3 right-20 w-8 h-8 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-zinc-400 hover:text-white hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100 shadow-lg">
+                                <i class="fa-solid fa-folder-plus text-sm"></i>
+                            </button>
+
+                            <button type="button" onclick="app.shareStory(event, '${story.yt_id}', '${story.title.replace(/'/g, "\\'")}')" title="Share Story" class="absolute top-3 right-12 w-8 h-8 flex items-center justify-center bg-black/50 backdrop-blur-md rounded-full text-zinc-400 hover:text-white hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100 shadow-lg">
+                                <i class="fa-solid fa-share-nodes text-sm"></i>
+                            </button>
+
+                            <button type="button" onclick="app.playAudio(event, ${story.id}, '${story.yt_id}')" class="absolute bottom-3 right-3 w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center shadow-lg transform translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 z-10">
+                                <i class="fa-solid ${currentlyPlayingId === story.id && isPlaying ? 'fa-pause' : 'fa-play'}"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-white font-bold truncate cursor-pointer hover:text-accent transition-colors" onclick='app.openStoryDetails(event, ${JSON.stringify(story).replace(/'/g, "&#39;")})'>
+                                    ${story.title}
+                                </h3>
+                                
+                                <div class="flex justify-between items-center mt-1 text-xs text-zinc-400">
+                                    <span class="truncate pr-2 max-w-[150px]"><i class="fa-solid fa-microphone-lines text-[10px] mr-1 text-zinc-500"></i>${story.uploader || 'Community Audio'}</span>
+                                    <span><i class="fa-solid fa-star text-yellow-500 mr-1"></i>${story.rating || 0}</span>
+                                </div>
+                                
+                                <div class="flex justify-between items-center mt-3">
+                                    <div class="flex gap-1">
+                                        ${(() => {
+                                            try {
+                                                const tags = JSON.parse(story.tags || '["Audiobook"]');
+                                                return tags.map(t => `<span class="bg-zinc-800/80 text-zinc-300 border border-white/10 text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-sm">${t}</span>`).join('');
+                                            } catch(e) { 
+                                                return `<span class="bg-zinc-800/80 text-zinc-300 border border-white/10 text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-sm">Audiobook</span>`;
+                                            }
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-3 border-t border-white/5 flex justify-between items-center">
+                                <div class="flex gap-1" title="Your Rating">
+                                    ${[1, 2, 3, 4, 5].map(star => `
+                                        <button type="button" onclick="app.rateStory(event, ${story.id}, ${star})" class="focus:outline-none transition-transform hover:scale-125">
+                                            <i class="${star <= story.my_rating ? 'fa-solid text-yellow-400' : 'fa-regular text-zinc-600'} fa-star text-sm"></i>
+                                        </button>
+                                    `).join('')}
+                                </div>
+                                <button type="button" onclick="app.toggleWriteReviewModal(event, true, ${story.id})" class="text-xs font-bold text-zinc-400 hover:text-white transition-colors">
+                                    Write Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+</html>
