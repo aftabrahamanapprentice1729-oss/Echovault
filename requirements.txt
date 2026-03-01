@@ -1,0 +1,6 @@
+Flask
+Flask-CORS
+PyJWT
+yt-dlp
+groq
+gunicorn
